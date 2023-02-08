@@ -89,6 +89,7 @@ function App() {
       engine.entities.forEach((e) => {
         ctx.fillStyle = e.color;
         ctx.strokeStyle = e.color;
+        // eslint-disable-next-line default-case
         switch (e.shape) {
           case ShapeRectangle:
             ctx.fillRect(e.x, e.y, e.w, e.h);
