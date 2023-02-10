@@ -18,6 +18,13 @@
   box-shadow: rgb(128, 128, 128) 5px 5px;
 }
 
+.billiard {
+  width: 800px;
+  height: 450px;
+  touch-action: none;
+  display: none;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {
     animation: App-logo-spin infinite 20s linear;

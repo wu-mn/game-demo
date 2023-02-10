@@ -1,115 +1,149 @@
 import "./App.css";
-import { tiles, cardClick } from "./test";
+// import { tiles, cardClick } from "./test";
 import React, { useEffect, useRef } from "react";
 import {
   Engine,
   RectangleEntity,
-  LineEntity,
   CircleEntity,
-  ShapeRectangle,
   ShapeCircle,
-  ShapeLine,
   BodyStatic,
   BodyDynamic,
 } from "./Tiny2D";
+import tableImg from "./billiard.png";
 
 function App() {
-  useEffect(() => {
-    let table = document.getElementById("table");
-    return () => {
-      for (let i = 0; i < 4; i++) {
-        let tr = document.createElement("tr");
-        for (let j = 0; j < 4; j++) {
-          let td = document.createElement("td");
-          let index = i * 4 + j;
-          td.className = "tile";
-          td.index = index;
-          td.value = index;
-          td.textContent = index === 0 ? "" : index;
-          td.onclick = cardClick;
-          tr.appendChild(td);
-          tiles.push(td);
-        }
-        table.appendChild(tr);
-      }
-      for (let i = 0; i < 1000; i++) {
-        cardClick({ target: { index: Math.floor(Math.random() * 16) } });
-      }
+  //billiard部分
+
+  let engine;
+  let target;
+  let mousePos = null;
+
+  const walls = [
+    [-100, -100, 1000, 140],
+    [-100, 410, 1000, 100],
+    [-100, -100, 140, 650],
+    [760, -100, 100, 650],
+  ];
+
+  const holes = [
+    [35, 35],
+    [400, 35],
+    [765, 35],
+    [35, 415],
+    [400, 415],
+    [765, 415],
+  ];
+
+  let balls = [
+    { x: 200, y: 200, c: "#FFF400" },
+    { x: 125, y: 185, c: "#005CD3" },
+    { x: 150, y: 170, c: "#CE2721" },
+    { x: 100, y: 200, c: "#BD4CB8" },
+    { x: 175, y: 215, c: "#F06700" },
+    { x: 125, y: 215, c: "#00a000" },
+    { x: 175, y: 185, c: "#B70D3A" },
+    { x: 150, y: 230, c: "#333333" },
+    { x: 150, y: 200, c: "#FFD300" },
+    { x: 650, y: 200, c: "#CAFDFF" },
+  ];
+
+  engine = new Engine(-100, -100, 1000, 650, 0, 0);
+  // 壁を作成してエンジンに追加
+  walls.forEach((w) => {
+    let r = new RectangleEntity(w[0], w[1], w[2], w[3]);
+    r.color = "gray";
+    engine.entities.push(r);
+  });
+
+  // 玉を作成してエンジンに追加
+  balls.forEach((b) => {
+    let r = new CircleEntity(b.x, b.y, 15, BodyDynamic, 0.9, 0.99);
+    r.color = b.c;
+    b.entity = r;
+    engine.entities.push(r);
+  });
+
+  // 穴を作成してエンジンに追加
+  holes.forEach((h) => {
+    let r = new CircleEntity(h[0], h[1], 20, BodyStatic);
+    r.color = "rgba(255,255,255,0)";
+    r.onhit = (me, peer) => {
+      engine.entities = engine.entities.filter((e) => {
+        return e !== peer;
+      }); // 穴(me)に衝突した玉(peer)を削除
     };
-  }, []);
+    engine.entities.push(r);
+  });
 
-  let r;
-  let colors = ["yellow", "pink", "green", "blue", "white", "gray"];
-
-  const engine = new Engine(0, 0, 600, 800, 0, 9.8);
-  r = new RectangleEntity(500, 50, 50, 400);
-  r.color = "green";
-  engine.entities.push(r);
-
-  r = new RectangleEntity(0, 50, 50, 400);
-  r.color = "yellow";
-  engine.entities.push(r);
-
-  r = new LineEntity(50, 300, 400, 350);
-  r.color = "orange";
-  engine.entities.push(r);
-
-  r = new LineEntity(500, 400, 100, 450);
-  r.color = "orange";
-  engine.entities.push(r);
-
-  for (let i = 0; i < 7; i++) {
-    for (let j = 0; j < 3; j++) {
-      r = new CircleEntity(i * 60 + 100, j * 60 + 100, 5, BodyStatic);
-      r.color = colors[j];
-      engine.entities.push(r);
+  const mymousedown = (e) => {
+    let mouseX = !isNaN(e.offsetX) ? e.offsetX : e.touches[0].clientX;
+    let mouseY = !isNaN(e.offsetY) ? e.offsetY : e.touches[0].clientY;
+    for (let i = 0; i < balls.length; i++) {
+      if (balls[i].entity.isHit(mouseX, mouseY)) {
+        target = balls[i].entity; // マウス座標の玉をtargetに設定
+        mousePos = { x: mouseX, y: mouseY };
+        break;
+      }
     }
-  }
-
-  const rand = (v) => {
-    return Math.floor(Math.random() * v);
   };
 
-  for (let i = 0; i < 20; i++) {
-    r = new CircleEntity(rand(400) + 50, rand(200), 10, BodyDynamic);
-    r.color = colors[rand(5)];
-    r.velocity.x = rand(10) - 5;
-    r.velocity.y = rand(10) - 5;
-    engine.entities.push(r);
-  }
+  const mymousemove = (e) => {
+    let mouseX = !isNaN(e.offsetX) ? e.offsetX : e.touches[0].clientX;
+    let mouseY = !isNaN(e.offsetY) ? e.offsetY : e.touches[0].clientY;
+    if (target) {
+      mousePos = { x: mouseX, y: mouseY }; // マウスの座標を更新
+    }
+  };
+
+  const mymouseup = () => {
+    if (target) {
+      let dx = mousePos.x - target.x;
+      let dy = mousePos.y - target.y;
+      target.velocity.x = dx / 10; // 玉にx方向の速度を設定
+      target.velocity.y = dy / 10; // 玉にy方向の速度を設定
+    }
+    target = null;
+  };
 
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+    canvas.onmousedown = mymousedown;
+    canvas.onmousemove = mymousemove;
+    canvas.onmouseup = mymouseup;
+    canvas.addEventListener("touchstart", mymousedown);
+    canvas.addEventListener("touchmove", mymousemove);
+    canvas.addEventListener("touchend", mymouseup);
+    // その他(Canvas, Timer)の初期化
+    // ctx.font = "20pt Arial";
+    // ctx.strokeStyle = "blue";
+
     const repaint = () => {
-      ctx.fillStyle = "black";
-      ctx.fillRect(0, 0, 600, 600);
-      engine.entities.forEach((e) => {
+      const table = document.getElementById("table-img");
+      ctx.drawImage(table, 0, 0, 800, 450);
+      // ボール・壁の描画
+      for (let i = 0; i < engine.entities.length; i++) {
+        let e = engine.entities[i];
         ctx.fillStyle = e.color;
-        ctx.strokeStyle = e.color;
-        // eslint-disable-next-line default-case
         switch (e.shape) {
-          case ShapeRectangle:
-            ctx.fillRect(e.x, e.y, e.w, e.h);
-            break;
           case ShapeCircle:
             ctx.beginPath();
             ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
             ctx.closePath();
             ctx.fill();
             break;
-          case ShapeLine:
-            ctx.beginPath();
-            ctx.moveTo(e.x0, e.y0);
-            ctx.lineTo(e.x1, e.y1);
-            ctx.stroke();
-            break;
         }
-      });
-    };
+      }
 
+      if (target && mousePos) {
+        ctx.beginPath();
+        ctx.moveTo(target.x, target.y);
+        ctx.lineTo(mousePos.x, mousePos.y);
+        ctx.stroke();
+      }
+    };
     const tick = () => {
       engine.step(0.01);
       repaint();
@@ -119,8 +153,8 @@ function App() {
 
   return (
     <>
-      <canvas ref={canvasRef} width="600" height="600"></canvas>
-      <table id="table"></table>
+      <canvas ref={canvasRef} width="800" height="450"></canvas>
+      <img src={tableImg} id="table-img" className="billiard"></img>
     </>
   );
 }
